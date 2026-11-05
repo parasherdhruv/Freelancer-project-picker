@@ -1,0 +1,7 @@
+{
+  "name": "Autonomous Job Hunter",
+  "description": "Discover and evaluate engineering opportunities and freelance contracts with an autonomous agent.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

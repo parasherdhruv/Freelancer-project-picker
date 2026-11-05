@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkMode {
+  ONSITE
+  HYBRID
+  REMOTE
+  UNKNOWN
+}
+
+enum JobSource {
+  MANUAL
+  COMPANY_SITE
+  API
+  RSS
+  OTHER
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+model CandidateProfile {
+  id                 String   @id @default("default")
+  headline           String?
+  yearsExperience    Float    @default(4)
+  targetMinLpa       Float?
+  targetMaxLpa       Float?
+  preferredLocations String[] @default([])
+  remoteOpen         Boolean  @default(true)
+  skills             String[] @default([])
+  resumeText         String?
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+}
+
+model Job {
+  id          String       @id @default(cuid())
+  title       String
+  company     String
+  location    String?
+  workMode    WorkMode     @default(UNKNOWN)
+  description String
+  skills      String[]     @default([])
+  minLpa      Float?
+  maxLpa      Float?
+  source      JobSource    @default(MANUAL)
+  sourceUrl   String       @unique
+  externalId  String?
+  postedAt    DateTime?
+  expiresAt   DateTime?
+  status      ApplicationStatus @default(SAVED)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([createdAt])
+  @@index([company])
+  @@index([status])
+}
+
+enum PricingType {
+  HOURLY
+  FIXED_PRICE
+  RETAINER
+}
+
+enum ProjectScope {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum GigStatus {
+  DISCOVERED
+  SAVED
+  EVALUATED
+  PROPOSAL_GENERATED
+  PROPOSAL_APPROVED
+  PROPOSAL_SUBMITTED
+  INTERVIEWING
+  OFFER_RECEIVED
+  CONTRACT_ACTIVE
+  COMPLETED
+  DECLINED
+  ARCHIVED
+}
+
+enum ProposalStatus {
+  DRAFT
+  READY_FOR_REVIEW
+  APPROVED
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  ARCHIVED
+}
+
+model FreelancerProfile {
+  id                    String      @id @default("default")
+  fullName              String      @default("Dhruv Parasher")
+  headline              String      @default("Full Stack / MERN Senior Engineer")
+  bio                   String?     @default("Senior Full Stack Engineer with 4 years of hands-on experience building scalable web applications using React, Next.js, TypeScript, Node.js, NestJS, MongoDB, PostgreSQL, and GraphQL.")
+  yearsExperience       Float       @default(4.0)
+  targetHourlyRateUsd   Float       @default(45.0)
+  targetHourlyRateInr   Float?      @default(3500.0)
+  minProjectBudgetUsd   Float       @default(500.0)
+  weeklyCapacityHours   Int         @default(40)
+  skills                String[]    @default(["React", "Next.js", "TypeScript", "Node.js", "NestJS", "Express", "MongoDB", "PostgreSQL", "GraphQL"])
+  preferredLocations    String[]    @default(["India", "Remote Worldwide"])
+  remoteOpen            Boolean     @default(true)
+  immediateAvailability Boolean     @default(true)
+  portfolioLinks        String[]    @default([])
+  customPitchIntro      String?
+  proposals             Proposal[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model Gig {
+  id                  String         @id @default(cuid())
+  title               String
+  clientName          String         @default("Client")
+  clientLocation      String?
+  clientRating        Float?         @default(5.0)
+  clientReviewCount   Int            @default(0)
+  clientTotalSpent    Float?         @default(0.0)
+  paymentVerified     Boolean        @default(true)
+  pricingType         PricingType    @default(FIXED_PRICE)
+  budgetMin           Float?
+  budgetMax           Float?
+  hourlyRateMin       Float?
+  hourlyRateMax       Float?
+  currency            String         @default("USD")
+  workMode            WorkMode       @default(REMOTE)
+  scope               ProjectScope   @default(MEDIUM)
+  estimatedDuration   String?
+  description         String
+  skills              String[]       @default([])
+  source              JobSource      @default(MANUAL)
+  sourceUrl           String         @unique
+  externalId          String?
+  status              GigStatus      @default(DISCOVERED)
+  winnabilityScore    Float?
+  scoringBreakdown    Json?
+  proposals           Proposal[]
+  postedAt            DateTime?      @default(now())
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([status])
+  @@index([pricingType])
+  @@index([createdAt])
+  @@index([winnabilityScore])
+}
+
+model Proposal {
+  id                  String         @id @default(cuid())
+  gigId               String
+  gig                 Gig            @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  freelancerId        String         @default("default")
+  freelancer          FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  status              ProposalStatus @default(DRAFT)
+  coverLetter         String
+  proposedRate        Float?
+  pricingType         PricingType    @default(FIXED_PRICE)
+  estimatedTimeline   String?
+  milestones          Json?
+  providerUsed        String         @default("deterministic")
+  notes               String?
+  approvedAt          DateTime?
+  submittedAt         DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([gigId])
+  @@index([status])
+  @@index([createdAt])
+}
