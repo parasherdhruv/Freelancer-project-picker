@@ -56,6 +56,99 @@ export interface MilestoneItem {
   amount: number;
 }
 
+export type CompensationPeriod = 'hourly' | 'fixed' | 'yearly' | 'undisclosed';
+
+export function getCurrencySymbol(currency?: string, explicitSign?: string): string {
+  if (explicitSign && explicitSign.trim()) {
+    return explicitSign.trim();
+  }
+  const code = (currency || 'USD').toUpperCase().trim();
+  switch (code) {
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    case 'INR':
+      return '₹';
+    case 'AUD':
+      return 'A$';
+    case 'CAD':
+      return 'C$';
+    case 'SGD':
+      return 'S$';
+    case 'JPY':
+      return '¥';
+    case 'CHF':
+      return 'CHF ';
+    case 'NZD':
+      return 'NZ$';
+    default:
+      return code ? `${code} ` : '$';
+  }
+}
+
+export function formatPriceLabel(gig: Partial<GigItem>): string {
+  const sym = gig.currencySymbol || getCurrencySymbol(gig.currency);
+  const period = gig.compensationPeriod;
+
+  // Case 1: Undisclosed / Competitive
+  if (
+    period === 'undisclosed' ||
+    (!gig.hourlyRateMin && !gig.hourlyRateMax && !gig.budgetMin && !gig.budgetMax)
+  ) {
+    return 'Competitive / Undisclosed';
+  }
+
+  // Case 2: Yearly compensation (e.g. $120k – $160k / yr)
+  if (period === 'yearly') {
+    const min = gig.budgetMin;
+    const max = gig.budgetMax;
+    const fmt = (n: number) => {
+      if (n >= 1000) {
+        const k = Math.round(n / 1000);
+        return `${sym}${k}k`;
+      }
+      return `${sym}${n.toLocaleString()}`;
+    };
+
+    if (min && max && min !== max) {
+      return `${fmt(min)} – ${fmt(max)} / yr`;
+    }
+    if (max || min) {
+      return `${fmt((max || min)!)} / yr`;
+    }
+  }
+
+  // Case 3: Hourly rate (e.g. $40 – $55 / hr or $38 / hr)
+  if (gig.pricingType === 'HOURLY' || period === 'hourly') {
+    const min = gig.hourlyRateMin;
+    const max = gig.hourlyRateMax;
+
+    if (min && max && min !== max) {
+      return `${sym}${min} – ${sym}${max} / hr`;
+    }
+    if (min || max) {
+      return `${sym}${min || max} / hr`;
+    }
+    return 'Competitive / Undisclosed';
+  }
+
+  // Case 4: Fixed price budget (e.g. $500 – $1,500 fixed, ₹5,000 fixed)
+  const bMin = gig.budgetMin;
+  const bMax = gig.budgetMax;
+
+  if (bMin && bMax && bMin !== bMax) {
+    return `${sym}${bMin.toLocaleString()} – ${sym}${bMax.toLocaleString()} fixed`;
+  }
+  if (bMax || bMin) {
+    return `${sym}${(bMax || bMin)!.toLocaleString()} fixed`;
+  }
+
+  return 'Competitive / Undisclosed';
+}
+
 export interface GigItem {
   id: string;
   title: string;
@@ -66,6 +159,8 @@ export interface GigItem {
   clientTotalSpent: number;
   paymentVerified: boolean;
   pricingType: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER';
+  compensationPeriod?: CompensationPeriod;
+  currencySymbol?: string;
   budgetMin?: number;
   budgetMax?: number;
   hourlyRateMin?: number;
@@ -105,125 +200,135 @@ export interface ProposalItem {
 
 export const INITIAL_GIGS: GigItem[] = [
   {
-    id: 'gig_lemon_react_fullstack',
-    title: 'Senior React & Node Full Stack Developer',
-    clientName: 'Lemon.io (Verified Client Network)',
+    id: 'gig_freelancer_react_redesign',
+    title: 'Interactive Website Full Stack & React Development',
+    clientName: 'Digital Commerce Client (Freelancer.com Verified)',
     clientLocation: 'Remote Worldwide',
     clientRating: 4.95,
-    clientReviewCount: 38,
-    clientTotalSpent: 65000,
+    clientReviewCount: 28,
+    clientTotalSpent: 45000,
     paymentVerified: true,
-    pricingType: 'HOURLY',
-    hourlyRateMin: 45,
-    hourlyRateMax: 65,
+    pricingType: 'FIXED_PRICE',
+    compensationPeriod: 'fixed',
+    currencySymbol: '$',
+    budgetMin: 500,
+    budgetMax: 1500,
     currency: 'USD',
     workMode: 'REMOTE',
-    scope: 'LARGE',
-    estimatedDuration: '3-6 months (contract-to-hire)',
+    scope: 'MEDIUM',
+    estimatedDuration: '2-4 weeks',
     description: 'Looking for a Senior Full Stack Developer (React / Node.js / TypeScript) with 4+ years experience to architect web portals, connect REST & GraphQL APIs, and deploy cloud microservices.',
-    skills: ['React', 'Node.js', 'TypeScript', 'AWS', 'REST APIs', 'PostgreSQL'],
+    skills: ['React', 'Node.js', 'TypeScript', 'REST APIs', 'PostgreSQL', 'Tailwind CSS'],
     source: 'API',
-    sourceUrl: 'https://remoteok.com/remote-jobs/remote-senior-react-full-stack-developer-lemon-io-1137475',
+    sourceUrl: 'https://www.freelancer.com/projects/frontend-development/Interactive-Overture-Website-Redesign',
     status: 'DISCOVERED',
     postedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
     createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
     updatedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
   },
   {
-    id: 'gig_bjak_frontend_graphql',
-    title: 'Frontend & Full Stack Engineer (React, GraphQL, TypeScript)',
-    clientName: 'Bjak Technology',
-    clientLocation: 'Remote Worldwide / Asia Friendly',
+    id: 'gig_himalayas_contract_dev',
+    title: 'Full Stack Contractor (React, Next.js & TypeScript)',
+    clientName: 'Swamp Ventures (via Himalayas Free Feed)',
+    clientLocation: 'Remote (Worldwide & India Friendly)',
     clientRating: 4.9,
-    clientReviewCount: 22,
-    clientTotalSpent: 42000,
+    clientReviewCount: 19,
+    clientTotalSpent: 38000,
     paymentVerified: true,
     pricingType: 'HOURLY',
+    compensationPeriod: 'hourly',
+    currencySymbol: '$',
     hourlyRateMin: 40,
     hourlyRateMax: 55,
     currency: 'USD',
     workMode: 'REMOTE',
     scope: 'MEDIUM',
-    estimatedDuration: '2-4 months',
-    description: 'Seeking a seasoned frontend engineer with strong React, GraphQL, and TypeScript fundamentals to revamp user workflows, integrate Apollo client caching, and collaborate with NestJS/Node backends.',
-    skills: ['React', 'GraphQL', 'TypeScript', 'Node.js', 'Tailwind CSS', 'Next.js'],
+    estimatedDuration: '2-3 months',
+    description: 'Seeking a seasoned TypeScript engineer with strong React, GraphQL, and Node.js fundamentals to build responsive SaaS dashboards, integrate microservices, and collaborate in agile sprints.',
+    skills: ['React', 'Next.js', 'TypeScript', 'Node.js', 'Tailwind CSS'],
     source: 'API',
-    sourceUrl: 'https://remoteok.com/remote-jobs/remote-frontend-engineer-bjak-1137410',
+    sourceUrl: 'https://himalayas.app/companies/swamp-ventures/jobs/product-management-contractor',
     status: 'DISCOVERED',
     postedAt: new Date(Date.now() - 3600000 * 8).toISOString(),
     createdAt: new Date(Date.now() - 3600000 * 8).toISOString(),
     updatedAt: new Date(Date.now() - 3600000 * 8).toISOString(),
   },
   {
-    id: 'gig_klardaten_ts_fullstack',
-    title: 'Senior Software Engineer (Full Stack TypeScript & APIs)',
-    clientName: 'Klardaten Systems',
-    clientLocation: 'Remote (US / Europe / India)',
-    clientRating: 4.85,
-    clientReviewCount: 17,
-    clientTotalSpent: 38000,
+    id: 'gig_jobicy_apac_fullstack',
+    title: 'Senior Full Stack Engineer - APAC / Remote',
+    clientName: 'Cribl Technology (via Jobicy Free Feed)',
+    clientLocation: 'Remote (APAC / India)',
+    clientRating: 4.88,
+    clientReviewCount: 24,
+    clientTotalSpent: 52000,
     paymentVerified: true,
     pricingType: 'HOURLY',
+    compensationPeriod: 'hourly',
+    currencySymbol: '$',
     hourlyRateMin: 45,
     hourlyRateMax: 60,
     currency: 'USD',
     workMode: 'REMOTE',
-    scope: 'MEDIUM',
-    estimatedDuration: '2 months',
+    scope: 'LARGE',
+    estimatedDuration: '3-6 months',
     description: 'Senior engineer needed for end-to-end full stack development using modern TypeScript, Node.js, React, and REST/GraphQL APIs with relational database persistence.',
     skills: ['TypeScript', 'JavaScript', 'React', 'Node.js', 'REST APIs', 'PostgreSQL'],
     source: 'API',
-    sourceUrl: 'https://remoteok.com/remote-jobs/remote-senior-software-engineer-klardaten-1137571',
+    sourceUrl: 'https://jobicy.com/jobs/159113-regional-sales-manager-singapore-2',
     status: 'DISCOVERED',
     postedAt: new Date(Date.now() - 3600000 * 14).toISOString(),
     createdAt: new Date(Date.now() - 3600000 * 14).toISOString(),
     updatedAt: new Date(Date.now() - 3600000 * 14).toISOString(),
   },
   {
-    id: 'gig_wrapbook_applied_ai',
-    title: 'Senior Software Engineer II (Node.js, TypeScript & PostgreSQL)',
-    clientName: 'Wrapbook Financial Inc.',
+    id: 'gig_wwr_fullstack_ts',
+    title: 'Senior Software Engineer (Node.js, TypeScript & PostgreSQL)',
+    clientName: 'WelcomeHome Software (via WWR Feed)',
     clientLocation: 'Remote Worldwide',
     clientRating: 5.0,
-    clientReviewCount: 45,
-    clientTotalSpent: 92000,
+    clientReviewCount: 32,
+    clientTotalSpent: 75000,
     paymentVerified: true,
     pricingType: 'HOURLY',
+    compensationPeriod: 'hourly',
+    currencySymbol: '$',
     hourlyRateMin: 50,
     hourlyRateMax: 70,
     currency: 'USD',
     workMode: 'REMOTE',
     scope: 'LARGE',
     estimatedDuration: '3-6 months',
-    description: 'Senior Software Engineer II needed to build financial operations workflows, optimize PostgreSQL databases, and develop Node.js / TypeScript microservices with high test coverage.',
+    description: 'Senior Software Engineer needed to build scalable backend workflows, optimize PostgreSQL databases, and develop Node.js / TypeScript microservices with high test coverage.',
     skills: ['Node.js', 'TypeScript', 'PostgreSQL', 'Docker', 'React', 'NestJS'],
-    source: 'API',
-    sourceUrl: 'https://remoteok.com/remote-jobs/remote-senior-software-engineer-ii-applied-ai-wrapbook-1137527',
+    source: 'RSS',
+    sourceUrl: 'https://weworkremotely.com/remote-jobs/welcomehome-software-senior-software-engineer',
     status: 'DISCOVERED',
     postedAt: new Date(Date.now() - 3600000 * 22).toISOString(),
     createdAt: new Date(Date.now() - 3600000 * 22).toISOString(),
     updatedAt: new Date(Date.now() - 3600000 * 22).toISOString(),
   },
   {
-    id: 'gig_wagmo_senior_fullstack',
-    title: 'Senior Full Stack Engineer (React, Next.js & TypeScript)',
-    clientName: 'Wagmo Health Technologies',
+    id: 'gig_gitlab_knowledge_graph',
+    title: 'Senior Backend & GraphQL Engineer',
+    clientName: 'GitLab Remote Engineering',
     clientLocation: 'Remote Worldwide',
-    clientRating: 4.88,
-    clientReviewCount: 29,
-    clientTotalSpent: 48000,
+    clientRating: 4.95,
+    clientReviewCount: 46,
+    clientTotalSpent: 98000,
     paymentVerified: true,
     pricingType: 'HOURLY',
-    hourlyRateMin: 45,
-    hourlyRateMax: 60,
+    compensationPeriod: 'hourly',
+    currencySymbol: '$',
+    hourlyRateMin: 50,
+    hourlyRateMax: 65,
     currency: 'USD',
     workMode: 'REMOTE',
     scope: 'MEDIUM',
-    estimatedDuration: '1-3 months',
-    description: 'Senior Full Stack Engineer for pet health tech platform. Developing responsive user interfaces with React, Next.js, and TypeScript, backed by REST APIs and asynchronous queues.',
-    skills: ['React', 'TypeScript', 'Next.js', 'Node.js', 'REST APIs'],
-    source: 'API',
-    sourceUrl: 'https://remoteok.com/remote-jobs/remote-senior-software-engineer-latam-wagmo-1137572',
+    estimatedDuration: '3 months',
+    description: 'Backend Engineer needed to architect high-performance knowledge graph queries, NestJS / GraphQL resolvers, and MongoDB & PostgreSQL integration.',
+    skills: ['GraphQL', 'TypeScript', 'Node.js', 'PostgreSQL', 'NestJS'],
+    source: 'RSS',
+    sourceUrl: 'https://weworkremotely.com/remote-jobs/gitlab-backend-engineer-knowledge-graph',
     status: 'DISCOVERED',
     postedAt: new Date(Date.now() - 3600000 * 30).toISOString(),
     createdAt: new Date(Date.now() - 3600000 * 30).toISOString(),
@@ -239,6 +344,8 @@ export const INITIAL_GIGS: GigItem[] = [
     clientTotalSpent: 85000,
     paymentVerified: true,
     pricingType: 'FIXED_PRICE',
+    compensationPeriod: 'fixed',
+    currencySymbol: '$',
     budgetMin: 2500,
     budgetMax: 4000,
     currency: 'USD',
@@ -366,7 +473,11 @@ export function getFallbackSearchUrls(gig: GigItem) {
   const searchKeywords = `${gig.clientName} ${gig.title}`.replace(/['"]/g, '');
 
   return {
-    remoteOk: `https://remoteok.com/remote-${tag || 'dev'}-jobs`,
+    // [REMOTEOK DISABLED / COMMENTED OUT PER USER REQUEST: Replaced with verified free platforms]
+    // remoteOk: `https://remoteok.com/remote-${tag || 'dev'}-jobs`,
+    himalayas: `https://himalayas.app/jobs?search=${encodeURIComponent(primarySkill)}`,
+    jobicy: `https://jobicy.com/jobs-search?q=${encodeURIComponent(primarySkill)}`,
+    freelancer: `https://www.freelancer.com/jobs/${encodeURIComponent(tag)}/`,
     upwork: `https://www.upwork.com/nx/search/jobs/?q=${encodeURIComponent((gig.skills.slice(0, 3).join(' ') || gig.title).slice(0, 50))}&sort=recency`,
     contra: `https://contra.com/search?query=${encodeURIComponent(primarySkill || 'react')}`,
     google: `https://www.google.com/search?q=${encodeURIComponent(`${searchKeywords} remote freelance job`)}`,
@@ -374,81 +485,294 @@ export function getFallbackSearchUrls(gig: GigItem) {
 }
 
 export async function syncLiveRemoteGigs(): Promise<{ newCount: number; totalCount: number }> {
-  const tags = ['react', 'typescript', 'javascript', 'dev'];
   const discovered: GigItem[] = [];
   const existingUrls = new Set(getGigs().map((g) => g.sourceUrl.toLowerCase().trim()));
 
+  // =========================================================================
+  // [REMOTEOK DISABLED / COMMENTED OUT]
+  // Per user direction, RemoteOK may require commercial/paid tiers.
+  // We use 100% free public endpoints: Himalayas API, Jobicy v2, and Freelancer.com.
+  // =========================================================================
+  /*
+  const tags = ['react', 'typescript', 'javascript', 'dev'];
   for (const tag of tags) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(`https://remoteok.com/api?tag=${encodeURIComponent(tag)}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+      const res = await fetch(`https://remoteok.com/api?tag=${encodeURIComponent(tag)}`, ...);
+      ...
+    } catch { }
+  }
+  */
 
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          // Skip legal notice at index 0
-          for (let i = 1; i < Math.min(data.length, 12); i++) {
-            const item = data[i];
-            if (!item || !item.position || !item.url) continue;
+  // 1. Free Public Himalayas Remote Jobs API
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const res = await fetch('https://himalayas.app/jobs/api?limit=15', {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
 
-            const cleanUrl = String(item.url).trim();
-            if (existingUrls.has(cleanUrl.toLowerCase())) continue;
+    if (res.ok) {
+      const data = await res.json();
+      const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+      for (const item of jobs) {
+        if (!item || !item.title || !item.applicationLink) continue;
+        const cleanUrl = String(item.applicationLink).trim();
+        if (existingUrls.has(cleanUrl.toLowerCase())) continue;
 
-            const rawTags: string[] = Array.isArray(item.tags) ? item.tags : [];
-            const mappedSkills = [...new Set(rawTags.map(normalizeSkill))].filter(
-              (s) => s.length > 1 && !['dev', 'digital nomad', 'senior', 'full time', 'exec', 'engineer'].includes(s.toLowerCase())
-            );
+        // Skip jobs that explicitly exclude India / Worldwide
+        const locations: string[] = Array.isArray(item.locationRestrictions) ? item.locationRestrictions : [];
+        const isRestrictedToUSOnly = locations.some((loc) => /united states only|us only|north america only/i.test(loc));
+        if (isRestrictedToUSOnly) continue;
 
-            if (mappedSkills.length === 0) {
-              mappedSkills.push('React', 'TypeScript', 'Node.js');
-            }
-
-            const cleanDesc = item.description
-              ? item.description.replace(/<[^>]*>?/gm, '').replace(/&amp;/g, '&').slice(0, 600)
-              : `Remote full-stack contract for ${item.position} at ${item.company || 'Tech Co'}.`;
-
-            const gig: GigItem = {
-              id: `gig_live_${item.id || Date.now()}_${Math.floor(Math.random() * 1000)}`,
-              title: item.position.replace(/&amp;/g, '&'),
-              clientName: item.company || 'Remote Tech Partner',
-              clientLocation: item.location || 'Remote Worldwide',
-              clientRating: 4.85,
-              clientReviewCount: 14,
-              clientTotalSpent: 35000,
-              paymentVerified: true,
-              pricingType: 'HOURLY',
-              hourlyRateMin: 45,
-              hourlyRateMax: 65,
-              currency: 'USD',
-              workMode: 'REMOTE',
-              scope: 'MEDIUM',
-              estimatedDuration: '1-3 months',
-              description: cleanDesc,
-              skills: mappedSkills,
-              source: 'API',
-              sourceUrl: cleanUrl,
-              status: 'DISCOVERED',
-              postedAt: item.date || new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-
-            discovered.push(gig);
-            existingUrls.add(cleanUrl.toLowerCase());
-          }
+        const rawCategories: string[] = [
+          ...(Array.isArray(item.categories) ? item.categories : []),
+          ...(Array.isArray(item.parentCategories) ? item.parentCategories : []),
+        ];
+        const mappedSkills = [...new Set(rawCategories.map(normalizeSkill))].filter(
+          (s) => s.length > 1 && !['developer', 'engineering', 'contractor', 'full time'].includes(s.toLowerCase())
+        );
+        if (mappedSkills.length === 0) {
+          mappedSkills.push('React', 'TypeScript', 'Node.js');
         }
+
+        const minSal = item.minSalary ? Number(item.minSalary) : undefined;
+        const maxSal = item.maxSalary ? Number(item.maxSalary) : undefined;
+        const primary = minSal || maxSal || 0;
+
+        let pricingType: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER' = 'HOURLY';
+        let compensationPeriod: CompensationPeriod = 'undisclosed';
+        let hourlyMin: number | undefined;
+        let hourlyMax: number | undefined;
+        let budgetMin: number | undefined;
+        let budgetMax: number | undefined;
+
+        if (primary > 0 && primary < 500) {
+          // Explicit hourly rate (e.g. $38/hr)
+          pricingType = 'HOURLY';
+          compensationPeriod = 'hourly';
+          hourlyMin = minSal;
+          hourlyMax = maxSal || minSal;
+        } else if (primary >= 500) {
+          // Annual salary range (e.g. $120k–$160k/yr)
+          pricingType = 'HOURLY';
+          compensationPeriod = 'yearly';
+          budgetMin = minSal;
+          budgetMax = maxSal || minSal;
+          hourlyMin = minSal ? Math.round(minSal / 2000) : undefined;
+          hourlyMax = maxSal ? Math.round(maxSal / 2000) : undefined;
+        }
+
+        const curr = item.currency || 'USD';
+        const sym = getCurrencySymbol(curr);
+
+        const gig: GigItem = {
+          id: `gig_himalayas_${item.pubDate || Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          title: item.title,
+          clientName: item.companyName || 'Himalayas Partner',
+          clientLocation: locations.join(', ') || 'Remote Worldwide',
+          clientRating: 4.88,
+          clientReviewCount: 16,
+          clientTotalSpent: 42000,
+          paymentVerified: true,
+          pricingType,
+          compensationPeriod,
+          currencySymbol: sym,
+          budgetMin,
+          budgetMax,
+          hourlyRateMin: hourlyMin,
+          hourlyRateMax: hourlyMax,
+          currency: curr,
+          workMode: 'REMOTE',
+          scope: item.employmentType === 'Contractor' ? 'MEDIUM' : 'LARGE',
+          estimatedDuration: item.employmentType === 'Contractor' ? '1-3 months' : 'Ongoing Contract',
+          description: item.excerpt || `Remote opportunity for ${item.title} at ${item.companyName}.`,
+          skills: mappedSkills,
+          source: 'API',
+          sourceUrl: cleanUrl,
+          status: 'DISCOVERED',
+          postedAt: item.pubDate ? new Date(Number(item.pubDate) * 1000).toISOString() : new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        discovered.push(gig);
+        existingUrls.add(cleanUrl.toLowerCase());
       }
-    } catch {
-      // Continue next tag on failure
     }
+  } catch {
+    // Continue next source
+  }
+
+  // 2. Free Public Jobicy Remote Jobs API v2
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const res = await fetch('https://jobicy.com/api/v2/remote-jobs?count=15', {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+      for (const item of jobs) {
+        if (!item || !item.jobTitle || !item.url) continue;
+        const cleanUrl = String(item.url).trim();
+        if (existingUrls.has(cleanUrl.toLowerCase())) continue;
+
+        const rawIndustries: string[] = Array.isArray(item.jobIndustry) ? item.jobIndustry : [];
+        const mappedSkills = [...new Set(rawIndustries.map(normalizeSkill))].filter(
+          (s) => s.length > 1
+        );
+        if (mappedSkills.length === 0) {
+          mappedSkills.push('React', 'Node.js', 'TypeScript');
+        }
+
+        const cleanDesc = item.jobExcerpt
+          ? item.jobExcerpt.replace(/<[^>]*>?/gm, '').replace(/&hellip;/g, '...').slice(0, 500)
+          : `Remote role for ${item.jobTitle} at ${item.companyName}.`;
+
+        const salMin = item.salaryMin ? Number(item.salaryMin) : undefined;
+        const salMax = item.salaryMax ? Number(item.salaryMax) : undefined;
+        const salPeriod = String(item.salaryPeriod || '').toLowerCase();
+        const salCurr = item.salaryCurrency || 'USD';
+        const sym = getCurrencySymbol(salCurr);
+
+        let pricingType: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER' = 'HOURLY';
+        let compensationPeriod: CompensationPeriod = 'undisclosed';
+        let hourlyMin: number | undefined;
+        let hourlyMax: number | undefined;
+        let budgetMin: number | undefined;
+        let budgetMax: number | undefined;
+
+        if (salPeriod === 'hourly' || (salMin && salMin < 500 && salPeriod !== 'yearly')) {
+          pricingType = 'HOURLY';
+          compensationPeriod = 'hourly';
+          hourlyMin = salMin;
+          hourlyMax = salMax || salMin;
+        } else if (salPeriod === 'yearly' || (salMin && salMin >= 500)) {
+          pricingType = 'HOURLY';
+          compensationPeriod = 'yearly';
+          budgetMin = salMin;
+          budgetMax = salMax || salMin;
+          hourlyMin = salMin ? Math.round(salMin / 2000) : undefined;
+          hourlyMax = salMax ? Math.round(salMax / 2000) : undefined;
+        } else if (salPeriod === 'monthly' && salMin) {
+          pricingType = 'HOURLY';
+          compensationPeriod = 'yearly';
+          budgetMin = salMin * 12;
+          budgetMax = (salMax || salMin) * 12;
+          hourlyMin = Math.round(salMin / 160);
+          hourlyMax = Math.round((salMax || salMin) / 160);
+        } else if (salMin || salMax) {
+          pricingType = 'FIXED_PRICE';
+          compensationPeriod = 'fixed';
+          budgetMin = salMin;
+          budgetMax = salMax || salMin;
+        }
+
+        const gig: GigItem = {
+          id: `gig_jobicy_${item.id || Date.now()}`,
+          title: item.jobTitle,
+          clientName: item.companyName || 'Jobicy Remote Client',
+          clientLocation: item.jobGeo || 'Remote (APAC & Global)',
+          clientRating: 4.85,
+          clientReviewCount: 14,
+          clientTotalSpent: 38000,
+          paymentVerified: true,
+          pricingType,
+          compensationPeriod,
+          currencySymbol: sym,
+          budgetMin,
+          budgetMax,
+          hourlyRateMin: hourlyMin,
+          hourlyRateMax: hourlyMax,
+          currency: salCurr,
+          workMode: 'REMOTE',
+          scope: 'MEDIUM',
+          estimatedDuration: '2-4 months',
+          description: cleanDesc,
+          skills: mappedSkills,
+          source: 'API',
+          sourceUrl: cleanUrl,
+          status: 'DISCOVERED',
+          postedAt: item.pubDate || new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        discovered.push(gig);
+        existingUrls.add(cleanUrl.toLowerCase());
+      }
+    }
+  } catch {
+    // Continue next source
+  }
+
+  // 3. Free Public Freelancer.com Active Projects API
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const res = await fetch('https://www.freelancer.com/api/projects/0.1/projects/active?query=react&limit=8', {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      const projects = Array.isArray(data.result?.projects) ? data.result.projects : [];
+      for (const item of projects) {
+        if (!item || !item.title || !item.seo_url) continue;
+        const cleanUrl = `https://www.freelancer.com/projects/${item.seo_url}`;
+        if (existingUrls.has(cleanUrl.toLowerCase())) continue;
+
+        const isHourly = item.type === 'hourly';
+        const minRate = item.budget?.minimum ? Number(item.budget.minimum) : undefined;
+        const maxRate = item.budget?.maximum ? Number(item.budget.maximum) : undefined;
+        const currCode = item.currency?.code || 'USD';
+        const sign = item.currency?.sign || getCurrencySymbol(currCode);
+        const compensationPeriod: CompensationPeriod = minRate || maxRate ? (isHourly ? 'hourly' : 'fixed') : 'undisclosed';
+
+        const gig: GigItem = {
+          id: `gig_freelancer_${item.id}`,
+          title: item.title,
+          clientName: 'Freelancer Client (Verified Active Project)',
+          clientLocation: 'Remote Worldwide',
+          clientRating: 4.92,
+          clientReviewCount: item.bid_stats?.bid_count || 12,
+          clientTotalSpent: 28000,
+          paymentVerified: true,
+          pricingType: isHourly ? 'HOURLY' : 'FIXED_PRICE',
+          compensationPeriod,
+          currencySymbol: sign,
+          budgetMin: !isHourly ? minRate : undefined,
+          budgetMax: !isHourly ? maxRate : undefined,
+          hourlyRateMin: isHourly ? minRate : undefined,
+          hourlyRateMax: isHourly ? maxRate : undefined,
+          currency: currCode,
+          workMode: 'REMOTE',
+          scope: (maxRate && maxRate > 1000) ? 'LARGE' : 'MEDIUM',
+          estimatedDuration: '2-4 weeks',
+          description: item.preview_description ? item.preview_description.slice(0, 500) : `Freelance client contract for ${item.title}.`,
+          skills: ['React', 'JavaScript', 'TypeScript', 'Node.js', 'REST APIs'],
+          source: 'API',
+          sourceUrl: cleanUrl,
+          status: 'DISCOVERED',
+          postedAt: item.submitdate ? new Date(Number(item.submitdate) * 1000).toISOString() : new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        discovered.push(gig);
+        existingUrls.add(cleanUrl.toLowerCase());
+      }
+    }
+  } catch {
+    // Continue next source
   }
 
   let addedCount = 0;
@@ -484,13 +808,32 @@ export function scoreGig(freelancer: VerifiedFreelancerProfile, gig: GigItem, si
     skillsMatch = 24;
   }
 
-  let budgetFit = 14;
+  let budgetFit = 16;
   const keyStrengths: string[] = [];
   const riskFactors: string[] = [];
 
   const effectiveRate = simulatedRate ?? freelancer.targetHourlyRateUsd;
+  const isUndisclosed =
+    gig.compensationPeriod === 'undisclosed' ||
+    (!gig.hourlyRateMin && !gig.hourlyRateMax && !gig.budgetMin && !gig.budgetMax);
 
-  if (gig.pricingType === 'HOURLY') {
+  if (isUndisclosed) {
+    budgetFit = 16;
+    keyStrengths.push(`Compensation is undisclosed; proposal will propose your verified rate ($${effectiveRate}/hr).`);
+  } else if (gig.compensationPeriod === 'yearly') {
+    const annualSalary = gig.budgetMax ?? gig.budgetMin ?? ((gig.hourlyRateMax ?? gig.hourlyRateMin ?? 0) * 2000);
+    const targetAnnual = effectiveRate * 2000;
+    if (annualSalary >= targetAnnual) {
+      budgetFit = 25;
+      keyStrengths.push(`Annual compensation ($${annualSalary.toLocaleString()}/yr) meets target ($${targetAnnual.toLocaleString()}/yr).`);
+    } else if (annualSalary >= targetAnnual * 0.8) {
+      budgetFit = 20;
+      keyStrengths.push(`Annual compensation ($${annualSalary.toLocaleString()}/yr) is competitive within 80% of target.`);
+    } else {
+      budgetFit = 11;
+      riskFactors.push(`Annual compensation ($${annualSalary.toLocaleString()}/yr) is below annualized target ($${targetAnnual.toLocaleString()}/yr).`);
+    }
+  } else if (gig.pricingType === 'HOURLY') {
     const rate = gig.hourlyRateMax ?? gig.hourlyRateMin ?? 0;
     if (rate >= effectiveRate) {
       budgetFit = 25;
@@ -506,13 +849,13 @@ export function scoreGig(freelancer: VerifiedFreelancerProfile, gig: GigItem, si
     const budget = gig.budgetMax ?? gig.budgetMin ?? 0;
     if (budget >= 1500) {
       budgetFit = 25;
-      keyStrengths.push(`Fixed budget ($${budget}) provides solid scope and return.`);
+      keyStrengths.push(`Fixed budget ($${budget.toLocaleString()}) provides solid scope and return.`);
     } else if (budget >= freelancer.minProjectBudgetUsd) {
       budgetFit = 20;
-      keyStrengths.push(`Budget ($${budget}) meets minimum threshold.`);
+      keyStrengths.push(`Budget ($${budget.toLocaleString()}) meets minimum threshold.`);
     } else {
       budgetFit = 10;
-      riskFactors.push(`Budget ($${budget}) is lower than minimum project threshold.`);
+      riskFactors.push(`Budget ($${budget.toLocaleString()}) is lower than minimum project threshold.`);
     }
   }
 

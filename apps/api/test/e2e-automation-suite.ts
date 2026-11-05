@@ -315,7 +315,7 @@ async function executeAutomation() {
     const verifyRes = await fetch(`${BASE_URL}/api/gigs/verify-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: 'https://remoteok.com' }),
+      body: JSON.stringify({ url: 'https://himalayas.app' }),
     });
     expectEqual(verifyRes.status, 200, 'Verify URL endpoint status');
     const verifyData = await verifyRes.json();

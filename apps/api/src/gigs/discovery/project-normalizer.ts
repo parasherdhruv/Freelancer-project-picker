@@ -55,6 +55,8 @@ export class ProjectNormalizer {
       clientTotalSpent: raw.clientTotalSpent !== undefined ? raw.clientTotalSpent : 15000,
       paymentVerified: raw.paymentVerified !== undefined ? raw.paymentVerified : true,
       pricingType: (raw.pricingType as PricingType) || 'FIXED_PRICE',
+      compensationPeriod: raw.compensationPeriod,
+      currencySymbol: raw.currencySymbol,
       budgetMin: raw.budgetMin,
       budgetMax: raw.budgetMax,
       hourlyRateMin: raw.hourlyRateMin,

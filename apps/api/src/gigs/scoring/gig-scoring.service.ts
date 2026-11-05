@@ -47,11 +47,31 @@ export class GigScoringService {
     }
 
     // 2. Budget & Compensation Fit (0 - 25 points)
-    let budgetFit = 14;
+    let budgetFit = 16;
     const keyStrengths: string[] = [];
     const riskFactors: string[] = [];
 
-    if (gig.pricingType === 'HOURLY') {
+    const isUndisclosed =
+      gig.compensationPeriod === 'undisclosed' ||
+      (!gig.hourlyRateMin && !gig.hourlyRateMax && !gig.budgetMin && !gig.budgetMax);
+
+    if (isUndisclosed) {
+      budgetFit = 16;
+      keyStrengths.push(`Compensation is competitive/undisclosed; proposal will quote your verified target rate ($${freelancer.targetHourlyRateUsd}/hr).`);
+    } else if (gig.compensationPeriod === 'yearly') {
+      const annualSalary = gig.budgetMax ?? gig.budgetMin ?? ((gig.hourlyRateMax ?? gig.hourlyRateMin ?? 0) * 2000);
+      const targetAnnual = freelancer.targetHourlyRateUsd * 2000;
+      if (annualSalary >= targetAnnual) {
+        budgetFit = 25;
+        keyStrengths.push(`Annual compensation ($${annualSalary.toLocaleString()}/yr) meets or exceeds your $${targetAnnual.toLocaleString()}/yr target.`);
+      } else if (annualSalary >= targetAnnual * 0.8) {
+        budgetFit = 20;
+        keyStrengths.push(`Annual compensation ($${annualSalary.toLocaleString()}/yr) is competitive within 80% of target.`);
+      } else {
+        budgetFit = 11;
+        riskFactors.push(`Annual compensation ($${annualSalary.toLocaleString()}/yr) is below annualized target ($${targetAnnual.toLocaleString()}/yr).`);
+      }
+    } else if (gig.pricingType === 'HOURLY') {
       const rate = gig.hourlyRateMax ?? gig.hourlyRateMin ?? 0;
       if (rate >= freelancer.targetHourlyRateUsd) {
         budgetFit = 25;
@@ -63,20 +83,20 @@ export class GigScoringService {
         budgetFit = 9;
         riskFactors.push(`Hourly rate ($${rate}/hr) is below target ($${freelancer.targetHourlyRateUsd}/hr).`);
       } else {
-        budgetFit = 12;
+        budgetFit = 14;
       }
     } else {
       // Fixed price or retainer
       const budget = gig.budgetMax ?? gig.budgetMin ?? 0;
       if (budget >= 1500) {
         budgetFit = 25;
-        keyStrengths.push(`Generous fixed budget ($${budget}) aligns well with milestone-based delivery.`);
+        keyStrengths.push(`Generous fixed budget ($${budget.toLocaleString()}) aligns well with milestone-based delivery.`);
       } else if (budget >= freelancer.minProjectBudgetUsd) {
         budgetFit = 20;
-        keyStrengths.push(`Budget ($${budget}) exceeds your $${freelancer.minProjectBudgetUsd} minimum.`);
+        keyStrengths.push(`Budget ($${budget.toLocaleString()}) exceeds your $${freelancer.minProjectBudgetUsd} minimum.`);
       } else if (budget > 0) {
         budgetFit = 10;
-        riskFactors.push(`Budget ($${budget}) is lower than minimum project threshold.`);
+        riskFactors.push(`Budget ($${budget.toLocaleString()}) is lower than minimum project threshold.`);
       } else {
         budgetFit = 14;
       }

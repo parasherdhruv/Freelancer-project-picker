@@ -1,3 +1,5 @@
+export type CompensationPeriod = 'hourly' | 'fixed' | 'yearly' | 'undisclosed';
+
 export type PricingType = 'HOURLY' | 'FIXED_PRICE' | 'RETAINER';
 
 export type ProjectScope = 'SMALL' | 'MEDIUM' | 'LARGE';
@@ -52,6 +54,8 @@ export interface GigItem {
   clientTotalSpent: number;
   paymentVerified: boolean;
   pricingType: PricingType;
+  compensationPeriod?: CompensationPeriod;
+  currencySymbol?: string;
   budgetMin?: number;
   budgetMax?: number;
   hourlyRateMin?: number;

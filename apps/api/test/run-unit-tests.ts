@@ -100,6 +100,40 @@ async function runTests() {
   });
   assert(isDup === true, 'Successfully detects duplicate URL');
 
+  // Test 4: Pricing & Compensation Fit Scoring
+  console.log('\n4. Testing Pricing & Compensation Fit Scoring:');
+  const undisclosedGig: GigItem = {
+    ...sampleGig,
+    id: 'gig_undisclosed',
+    compensationPeriod: 'undisclosed',
+    hourlyRateMin: undefined,
+    hourlyRateMax: undefined,
+    budgetMin: undefined,
+    budgetMax: undefined,
+  };
+  const evalUndisclosed = scoringService.calculateWinnability(VERIFIED_FREELANCER_PROFILE, undisclosedGig);
+  assert(evalUndisclosed.breakdown.budgetFit === 16, `Undisclosed salary gets honest neutral 16 points (got ${evalUndisclosed.breakdown.budgetFit})`);
+  assert(
+    evalUndisclosed.keyStrengths.some((s) => s.includes('Compensation is competitive/undisclosed')),
+    'Key strength includes transparent note about proposing verified target rate',
+  );
+
+  const yearlyGig: GigItem = {
+    ...sampleGig,
+    id: 'gig_yearly',
+    compensationPeriod: 'yearly',
+    budgetMin: 120000,
+    budgetMax: 150000,
+    hourlyRateMin: 60,
+    hourlyRateMax: 75,
+  };
+  const evalYearly = scoringService.calculateWinnability(VERIFIED_FREELANCER_PROFILE, yearlyGig);
+  assert(evalYearly.breakdown.budgetFit === 25, `Annual salary exceeding $90k target gets full 25 points (got ${evalYearly.breakdown.budgetFit})`);
+  assert(
+    evalYearly.keyStrengths.some((s) => s.includes('Annual compensation')),
+    'Key strength highlights annual salary fit',
+  );
+
   console.log('\n🎉 ALL UNIT AND INTEGRATION TESTS PASSED!\n');
 }
 

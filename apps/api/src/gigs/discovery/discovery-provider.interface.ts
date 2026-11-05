@@ -1,4 +1,4 @@
-import { PricingType, ProjectScope } from '../gigs.types';
+import { CompensationPeriod, PricingType, ProjectScope } from '../gigs.types';
 
 export interface DiscoveredProject {
   title: string;
@@ -9,6 +9,8 @@ export interface DiscoveredProject {
   clientTotalSpent?: number;
   paymentVerified?: boolean;
   pricingType: PricingType;
+  compensationPeriod?: CompensationPeriod;
+  currencySymbol?: string;
   budgetMin?: number;
   budgetMax?: number;
   hourlyRateMin?: number;

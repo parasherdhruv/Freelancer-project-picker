@@ -19,6 +19,8 @@ export async function POST(req: Request) {
       clientTotalSpent: body.clientTotalSpent !== undefined ? Number(body.clientTotalSpent) : 5000,
       paymentVerified: body.paymentVerified !== undefined ? Boolean(body.paymentVerified) : true,
       pricingType: body.pricingType || 'FIXED_PRICE',
+      compensationPeriod: body.compensationPeriod,
+      currencySymbol: body.currencySymbol,
       budgetMin: body.budgetMin ? Number(body.budgetMin) : undefined,
       budgetMax: body.budgetMax ? Number(body.budgetMax) : undefined,
       hourlyRateMin: body.hourlyRateMin ? Number(body.hourlyRateMin) : undefined,

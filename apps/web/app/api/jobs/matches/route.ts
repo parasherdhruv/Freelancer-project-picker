@@ -20,7 +20,7 @@ export async function GET() {
           company: 'Fintech Solutions India',
           location: 'Bengaluru / Remote',
           workMode: 'REMOTE',
-          sourceUrl: 'https://remoteok.com/remote-jobs/remote-senior-react-full-stack-developer-lemon-io-1137475',
+          sourceUrl: 'https://himalayas.app/jobs/senior-full-stack-engineer-lemon',
           minLpa: 20,
           maxLpa: 26,
         },

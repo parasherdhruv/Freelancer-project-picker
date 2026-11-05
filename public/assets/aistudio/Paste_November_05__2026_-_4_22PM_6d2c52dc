@@ -1,0 +1,1035 @@
+Freelancer Project Picker — Product Blueprint v2.0
+
+Product-first, source-validated, implementation-ready plan
+
+Prepared: 5 November 2026
+Repository: https://github.com/parasherdhruv/Freelancer-project-picker
+Document status: Product and architecture plan; not an implementation report
+Audience: Product owner, coding agent, senior engineer, technical reviewer
+
+> **Important status:** This plan does not claim that any code has been changed, any branch has been created, any API credentials have been obtained, or any provider integration has been tested end-to-end. Public documentation was reviewed on 5 November 2026. API access, terms, schemas and quotas can change; re-check official docs and run a live contract test before enabling each connector.
+
+────────
+
+0. Executive decision
+
+Build a personal Freelance Opportunity Intelligence Workbench, not a generic remote-job aggregator and not an auto-bidding bot.
+
+Its job is to help one engineer consistently answer five questions:
+
+1. What real paid projects can I apply to?
+2. Which ones are actually suitable for my skills, portfolio, location and availability?
+3. Is the client/project credible enough to spend time on?
+4. What is the strongest truthful proposal I can send?
+5. What happened after I applied, and what should I do next?
+
+The product must not pretend that a remote full-time vacancy is a freelance project. It will support two separate opportunity tracks inside one dashboard:
+
+• Freelance projects: client-posted fixed-price/hourly projects and scoped deliverables.
+• Remote roles: contract, part-time and full-time jobs from remote job boards.
+
+They share profile/evidence and parts of matching infrastructure, but they have separate source adapters, labels, filters, scoring weights and application workflows.
+
+The first release is useful even if marketplace APIs are unavailable: it can ingest public feeds for remote roles and accept user-submitted project URLs/briefs from freelance marketplaces. Marketplace API integration is an enhancement gated by documented access, not a dependency that blocks the MVP.
+
+Product success metric
+
+Do not optimize for number of scraped records. Optimize for:
+
+• relevant opportunities surfaced per week;
+• percentage of surfaced opportunities the user shortlists;
+• verified-open opportunities at the time user reviews them;
+• proposals the user actually submits;
+• replies/interviews/wins attributable to tracked opportunities;
+• time saved per qualified application.
+
+North-star metric: qualified opportunities that lead to a user-approved application, not total records ingested.
+
+────────
+
+1. Product positioning and non-goals
+
+1.1 Target user
+
+One independent software engineer based in India, with a verified profile initially describing 4 years of MERN/full-stack experience and strengths in React, Next.js, TypeScript, Node.js, NestJS, Express, MongoDB, PostgreSQL and GraphQL.
+
+These are initial seed values from prior profile context, not immutable truths. The user must be able to edit and confirm every profile fact, availability, rate, capacity, portfolio entry and location preference.
+
+1.2 Product promise
+
+“Find the best legitimate opportunities for my actual capabilities, explain why they fit, prepare an evidence-backed application, and keep me in control.”
+
+1.3 Explicit non-goals for MVP
+
+• No automatic bidding, proposal submission, messaging, or account actions.
+• No CAPTCHA solving, stealth browser automation, session-cookie harvesting, or bot-detection bypass.
+• No scraping a marketplace unless its current terms and technical rules explicitly permit the intended use.
+• No claim that an API is available just because a platform has a developer portal.
+• No multi-tenant SaaS, billing, team workspaces, Kubernetes or microservices.
+• No mandatory paid LLM.
+• No fabricated client trust metrics, salary, budget, project history, user achievements or outcomes.
+• No automatic inference that a listing is open merely because its URL returns HTTP 200.
+
+────────
+
+2. Product tracks: separate the two markets
+
+Track A — Freelance Projects
+
+Examples:
+
+• Build a Next.js dashboard.
+• Fix a React/Node production issue.
+• Develop a MERN marketplace.
+• Integrate a payment gateway.
+• Optimize a WordPress site.
+• Build an API or admin panel.
+
+Required source fields include project brief, budget/rate, client/platform, posted time, project status, proposal/bid URL, required skills and source ID when available.
+
+Primary workflow:
+Discovered → Qualified → Shortlisted → Proposal Draft → Reviewed → User Submitted → Client Reply → Interview/Discussion → Won/Lost/Withdrawn
+
+Track B — Remote Roles
+
+Examples:
+
+• Remote React Engineer.
+• Full-time Next.js developer.
+• 6-month Node.js contract.
+• Part-time technical role.
+
+Required fields include employer, employment type, salary/rate, location restrictions, timezone, seniority, application link and source attribution.
+
+Primary workflow:
+Discovered → Eligible → Shortlisted → Resume/Proposal Tailored → Reviewed → User Applied → Recruiter Reply → Interview → Offer/Rejected/Withdrawn
+
+Hard rule: A source listing tagged “contract” is not automatically a freelance marketplace project. Preserve the provider’s original employment type and store our classification separately with confidence and explanation.
+
+────────
+
+3. Source feasibility: what can actually supply opportunities?
+
+This is the most important section. A provider is not “integrated” until we have confirmed: official access, allowed use, the relevant record type, fields, pagination, quotas, freshness, attribution, application URL, authentication and a passing live contract test.
+
+3.1 Source tiers
+
+Tier 1 — Public documented feeds: build first, but only for Remote Roles
+
+|Provider |What it supplies                                                                                 |Auth                                                               |Freshness / limits                                                                                                                                   |Decision                                                                    |
+|---------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
+|Himalayas|Remote jobs; employment type includes contract/full-time/part-time                               |Public API works without key; optional free read key               |API docs say data refreshes every 24h; browse max 20/page with cursor; free key quota documented as 60/min and 10,000/day                            |Build as Remote Roles adapter                                               |
+|Jobicy   |Remote jobs, including job type categories; its current docs include freelance/contract job types|Public API no key; optional commercial API key for direct ATS links|Current docs describe last-7-day public feed, cursor pagination, max 100/page; commercial direct links can cost $0.01 per newly returned eligible job|Build as Remote Roles adapter; do not enable paid commercial mode by default|
+|Remote OK|Remote tech job JSON and RSS feeds                                                               |Public feed; no auth                                               |Follow current FAQ/fair-use guidance; cache and attribute source                                                                                     |Build as Remote Roles adapter                                               |
+
+Important source correction: These providers are not equivalent to Upwork/Freelancer.com client project marketplaces. Even when a listing says “freelance” or “contract”, it is still a job-board listing, not necessarily an open client project accepting competitive bids.
+
+Tier 2 — Marketplace API candidates: feasibility gate before coding
+
+|Provider                      |Publicly confirmed facts                                                             |Unknown / must verify                                                                                                                                                                                                                                                             |MVP decision                                                                           |
+|------------------------------|-------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+|Freelancer.com                |Official Freelancer API developer portal exists and advertises API docs and a sandbox|Whether the exact current API exposes project discovery to a freelancer account; required auth, account role, scopes, rate limits, approval, and permission for this personal opportunity-discovery use                                                                           |First marketplace API feasibility spike; do not assume access                          |
+|Upwork                        |Official GraphQL API and OAuth 2.0 docs exist; API key requests are reviewed         |Current API docs list eligibility criteria including verified profile/payment, identity verification, account standing, and at least $25,000 lifetime earnings/spend or combined, plus 90% JSS for freelancers/agencies; actual job-search scope and permitted use must be checked|Treat as blocked/approval-gated until account eligibility and exact scope are confirmed|
+|Contra                        |Platform exists for independent work                                                 |No confirmed general-purpose public project-search API contract in this review                                                                                                                                                                                                    |Manual URL intake only until official API/partner access is documented                 |
+|Fiverr                        |Marketplace exists                                                                   |No confirmed public buyer-request/project-search API suitable for this use                                                                                                                                                                                                        |Manual URL intake only                                                                 |
+|PeoplePerHour / Guru / similar|Marketplace opportunities may exist                                                  |API access and automation permissions not verified here                                                                                                                                                                                                                           |Do not build connector without official evidence                                       |
+
+Critical distinction: “There is a developer API” does not prove “this API lets a freelancer search open client projects and use it for a personal job-hunting agent.” Test that exact user journey.
+
+Tier 3 — User-provided/manual opportunity intake: guaranteed MVP path
+
+Support:
+
+• Paste project URL.
+• Paste project description/brief.
+• Enter budget, skills and deadline if visible.
+• Upload or paste a screenshot/text excerpt where platform terms allow.
+• Select source platform and mark whether login is required.
+• Save original URL and user-entered metadata.
+• Let user confirm any extracted fields before scoring.
+
+The system should never log into a marketplace or fetch protected pages on the user’s behalf unless a documented permitted integration exists.
+
+Tier 4 — Direct client leads: later, separate lead type
+
+Potential sources include company career pages, public RFPs, startup communities, founder posts and user-forwarded emails. These are leads, not automatically verified paid projects. Add only after source-specific permission and provenance are defined. Do not turn social-media scraping into a hidden dependency.
+
+3.2 Source acceptance checklist
+
+A source cannot move to “enabled” until all are true:
+
+1. Official docs or written permission found.
+2. Terms allow this use case and display/storage/analysis.
+3. Correct user role can access the data.
+4. Data includes a stable ID or reliable canonical URL.
+5. Required fields are available or explicitly nullable.
+6. Pagination and rate limits are understood.
+7. Application/bid link is known and must be preserved.
+8. Attribution is implemented.
+9. Expiry/status semantics are understood.
+10. Live contract test passes with a small request.
+11. Failure and 429 behavior are tested.
+12. Source owner/terms URL and last-reviewed date are recorded.
+
+If a condition is unknown, source status is FEASIBILITY_PENDING, not ACTIVE.
+
+3.3 Provider-specific integration notes
+
+Himalayas
+
+• Official docs: https://himalayas.app/api
+• API reference: https://himalayas.app/docs/remote-jobs-api
+• OpenAPI: https://himalayas.app/docs/openapi.json
+• Browse: GET https://himalayas.app/jobs/api?limit=20
+• Search: GET https://himalayas.app/jobs/api/search?...
+• Single listing status: GET /jobs/api/companies/{companySlug}/jobs/{slug}
+• Cursor pagination is preferred; max 20 per browse request.
+• No key required. Optional free API key raises documented account quota to 60 requests/minute and 10,000/day.
+• Data refreshes every 24 hours. Do not poll more often just to simulate real-time freshness.
+• 200 means open; 410 means closed; 404 means not found/unavailable.
+• Every Apply action must use the API’s applicationLink unchanged.
+• Show visible Himalayas attribution and link. Do not pass their listings to third-party job aggregators or Google Jobs/LinkedIn Jobs feeds/structured data.
+• Backend calls only; browser CORS is not enabled.
+
+Jobicy
+
+• Official docs: https://jobicy.com/jobs-rss-feed
+• Official API repo/OpenAPI: https://github.com/Jobicy/remote-jobs-api
+• Current docs reviewed on 5 Nov 2026 describe public GET https://jobicy.com/api/jobs, no key, last-7-day listings, cursor pagination and up to 100 per page.
+• Public url is the Jobicy listing URL. An optional commercial API key can return a direct ATS application URL where available; current docs describe a $0.01 charge for each newly returned job with an available direct URL, per API key. Do not enable this for the MVP.
+• The current docs also describe a batch status endpoint for up to 100 IDs and active, closed, unknown states.
+• The Jobicy docs/site have shown different endpoint/version paths over time. Therefore implementation must fetch and pin the current official OpenAPI schema at development time; do not copy an old endpoint from a blog, cached README or previous implementation.
+• Retain Jobicy attribution and original listing URL.
+• Sanitize HTML descriptions.
+• Poll a few times per day; do not exceed the provider’s stated hourly minimum interval.
+
+Remote OK
+
+• Official FAQ: https://remoteok.com/faq
+• JSON: GET https://remoteok.com/api
+• RSS: https://remoteok.com/remote-jobs.rss
+• Tag filtering is available (e.g. ?tag=dev).
+• Public feed; no authentication required.
+• Attribute Remote OK and link original listing.
+• Treat listings as remote jobs, not freelance projects by default.
+• Use only salary/rate fields actually supplied; missing values remain unknown.
+
+Freelancer.com
+
+• Official developer portal: https://developers.freelancer.com/
+• Portal advertises official API documentation and a sandbox.
+• A real API exists, but this review has not verified that the available endpoints permit the exact freelancer-side project search flow needed here.
+• Feasibility spike must establish: API key/application registration, authentication/signing method, project search endpoint, project details, bid eligibility, account role, sandbox behavior, rate limits and terms.
+• Do not infer OAuth or scopes until the current API docs specify them.
+• If the API does not permit the desired use, keep manual URL intake.
+
+Upwork
+
+• Developer portal/docs: https://www.upwork.com/developer/
+• GraphQL API docs: https://www.upwork.com/developer/documentation/graphql/api/docs/index.html
+• Auth guidance: https://support.upwork.com/hc/en-us/articles/17995930500883–API-authentication-and-security
+• OAuth 2.0 is required for API requests.
+• Current public docs describe a reviewed API-key application and account eligibility conditions, including identity/profile/payment checks and lifetime earnings/spend threshold. Verify current requirements in the account before planning this connector.
+• Do not assume that OAuth approval implies job-search permission. Confirm the exact GraphQL query, permission and intended-use approval.
+• Upwork API is an optional future integration, not an MVP dependency.
+
+────────
+
+4. Product discovery validation before implementation
+
+Before building the full product, run a 3–5 day validation sprint.
+
+Experiment A — Real opportunity supply
+
+• Collect 30–50 opportunities manually from the target freelance marketplaces and 30–50 from remote job feeds.
+• Label each by source, type, freshness, India eligibility, budget, skill fit and apply route.
+• Separate real client projects from employment roles.
+• Measure how many are genuinely actionable for this profile.
+
+Experiment B — Source/API feasibility
+
+• Test the public APIs with low request volume.
+• Inspect official schemas and sample payloads.
+• Test pagination, duplicates, missing salary, HTML content, status checks and 429 handling.
+• Submit/inspect developer API access requirements for Freelancer.com; inspect Upwork eligibility and query scopes.
+• Record blockers with evidence; do not invent a workaround.
+
+Experiment C — Ranking usefulness
+
+• Manually label 50 opportunities: strong fit, possible fit, poor fit, invalid/expired.
+• Run a simple baseline matcher.
+• Compare the top 10 ranked results with the human labels.
+• Tune weights only after observing false positives/false negatives.
+
+Validation exit criteria
+
+• At least one reliable source for each enabled track.
+• At least 20 genuine actionable freelance projects or a documented conclusion that marketplace API supply is unavailable and manual intake is the MVP route.
+• At least 70% precision in the top 10 shortlist after human review on the test set (initial target, not a claimed result).
+• No fabricated trust, salary, budget or source data.
+• Source terms and attribution recorded.
+
+If validation fails, narrow the product scope before writing the full platform.
+
+────────
+
+5. User profile and Portfolio Intelligence
+
+5.1 Verified profile
+
+Store:
+
+• Name and headline.
+• Years of experience (user-confirmed).
+• Skills with proficiency and evidence.
+• Preferred project types.
+• Preferred geography/timezone.
+• Availability and weekly capacity.
+• Minimum acceptable hourly/fixed budget.
+• Preferred currencies.
+• Communication preferences.
+• Languages.
+• Profile summary.
+• Resume versions (only if user chooses to upload).
+
+All rate/availability fields are preferences that can change, not immutable claims.
+
+5.2 Portfolio evidence library — P0, not a later nice-to-have
+
+Each portfolio entry:
+
+• Project name and industry.
+• Product category.
+• Project context/problem.
+• User’s exact role and contribution.
+• Technologies actually used.
+• Architecture and important decisions.
+• Features delivered.
+• Outcomes/metrics only when evidence exists.
+• Public demo/repository/case-study URL.
+• Screenshot/file references.
+• Confidentiality flag.
+• Evidence verification status.
+• Last reviewed date.
+
+Do not infer the user’s role or results from a project title. User must confirm every claim.
+
+5.3 Evidence-to-opportunity matching
+
+For each opportunity, select up to 3 relevant portfolio examples and explain:
+
+• which requirements each example supports;
+• which technologies overlap;
+• what experience is transferable;
+• what is not evidenced and must not be claimed.
+
+A proposal fact should be traceable to either:
+
+• verified profile field;
+• verified portfolio evidence;
+• opportunity text;
+• user-approved custom statement.
+
+────────
+
+6. Opportunity Intelligence Engine
+
+The system should produce an analysis record, not just a score.
+
+6.1 Analysis dimensions
+
+• Project type and deliverables.
+• Required vs optional skills.
+• Scope and complexity.
+• Budget/rate and currency.
+• Estimated effort range (with uncertainty).
+• Deadline and urgency.
+• Client/platform credibility signals.
+• Competition signals, only if source provides reliable data.
+• Location/timezone eligibility.
+• Red flags and missing information.
+• Questions to ask the client.
+• Relevant portfolio evidence.
+• Recommended next action.
+
+6.2 Client credibility: evidence, not fake ratings
+
+Store provider-supplied fields separately from inferred signals.
+
+• Rating, review count, spend, payment verification: null unless source explicitly provides them.
+• Platform identity/verification badges: record source and timestamp.
+• External domain/business checks: only use lawful public data; show evidence and confidence.
+• No “verified client” label based on a company logo or domain alone.
+• A platform’s own verification badge is not a guarantee of payment or project legitimacy.
+
+6.3 Competition analysis
+
+Do not promise competitor/bid-count analysis unless source API supplies it and terms permit it.
+
+If unavailable:
+
+• mark competition UNKNOWN;
+• optionally show qualitative indicators such as listing age or source-provided proposal count;
+• never manufacture a “low competition” score.
+
+────────
+
+7. Matching and ranking model
+
+7.1 Two scoring profiles
+
+Freelance Project score — 100 points
+
+|Dimension                     |Weight|Evidence                                                       |
+|------------------------------|-----:|---------------------------------------------------------------|
+|Technical fit                 |20    |Required/optional skills and stack                             |
+|Portfolio evidence fit        |20    |Verified projects mapped to requirements                       |
+|Budget/economic fit           |15    |Actual budget/rate, currency, estimated effort                 |
+|Client/platform evidence      |15    |Only provider-supplied, attributable signals                   |
+|Scope clarity and feasibility |10    |Deliverables, acceptance criteria, deadline                    |
+|Competition/opportunity timing|10    |Source-provided bid count/age only; otherwise unknown          |
+|Location/timezone fit         |5     |Eligibility and working hours                                  |
+|Risk indicators               |5     |Suspicious payment requests, vague scope, off-platform pressure|
+
+Remote Role score — 100 points
+
+|Dimension                    |Weight|
+|-----------------------------|-----:|
+|Technical fit                |25    |
+|Portfolio/experience evidence|15    |
+|Compensation fit             |15    |
+|India/timezone eligibility   |15    |
+|Employment-type preference   |10    |
+|Seniority fit                |10    |
+|Freshness/status confidence  |5     |
+|Employer/listing risk        |5     |
+
+7.2 Scoring rules
+
+• Score only known inputs; missing fields do not silently receive positive values.
+• Show coverage/confidence separately from score.
+• Do not equate “unknown client rating” with “bad client”; show unknown evidence and reduce confidence.
+• Hard disqualifiers (not eligible in India, closed, requires payment to apply, clearly unrelated) should be filters, not just small score penalties.
+• Currency conversion must store source amount, currency, timestamp and FX source; never compare USD and INR as if equal.
+• Fixed-price feasibility must account for estimated effort and effective hourly return.
+• Skill matching must use normalized taxonomy/synonyms, not substring matching that creates false positives.
+• User feedback should tune preferences, but never silently rewrite verified profile facts.
+
+7.3 Explainability UI
+
+Show:
+
+• Match score.
+• Confidence: high/medium/low.
+• Why it matches.
+• Missing evidence.
+• Risks.
+• Estimated effort and budget confidence.
+• Recommended action.
+
+────────
+
+8. Proposal Intelligence Engine
+
+8.1 Workflow
+
+Opportunity → Requirement extraction → Portfolio evidence selection → Approach outline → Clarifying questions → Draft → Claim validation → User review → User approval → Manual submission
+
+8.2 Proposal structure
+
+1. Specific opening referencing the client’s actual problem.
+2. Concise understanding of deliverables.
+3. Relevant evidence from up to 2–3 portfolio items.
+4. Proposed implementation approach.
+5. Milestones and assumptions.
+6. One or two useful clarification questions.
+7. Rate/budget response and rationale.
+8. Clear close and next step.
+
+8.3 Proposal types
+
+• New MVP / product build.
+• Existing application enhancement.
+• Bug fixing / debugging.
+• Performance optimization.
+• UI implementation / design system.
+• API/backend integration.
+• Migration / refactoring.
+• Maintenance / long-term contract.
+
+8.4 Proposal quality gate
+
+Before showing “Ready for review”, validate:
+
+• Every factual claim has an evidence reference.
+• No fake client, metric, certification, rate or result.
+• Proposal addresses the actual brief.
+• No generic filler paragraphs.
+• Scope assumptions are explicit.
+• Timeline estimate includes uncertainty.
+• User rate preferences are respected.
+• Proposal does not promise impossible delivery.
+• Platform-specific rules are respected.
+
+8.5 AI provider strategy
+
+• Default: deterministic templates and structured extraction.
+• Optional: an LLM provider adapter, with model/version and prompt version logged.
+• Never require a paid model for core functionality.
+• No private data sent to a third-party model without user consent.
+• No auto-submit.
+
+────────
+
+9. Application and outcome tracking
+
+Track:
+
+• Source/platform and opportunity ID.
+• Original URL and captured brief snapshot.
+• Shortlist reason.
+• Proposal version and final submitted text (user-entered/confirmed).
+• Applied date/time.
+• Proposed rate/bid.
+• Platform application reference, if user supplies it.
+• Replies and follow-up dates.
+• Interview/meeting outcomes.
+• Won/lost/withdrawn reason.
+• Revenue only when user records it.
+
+Dashboard metrics:
+
+• Opportunities reviewed.
+• Shortlist rate.
+• Proposal approval rate.
+• Applications submitted.
+• Reply rate.
+• Interview rate.
+• Win rate.
+• Time-to-first-reply.
+• Revenue and effective hourly rate (optional manual input).
+
+Do not infer an application was submitted because the user clicked “Open source”. Provide a separate “I submitted this” action.
+
+────────
+
+10. Architecture
+
+10.1 Keep it boring: modular monolith
+
+• Next.js dashboard.
+• NestJS API.
+• PostgreSQL + Prisma.
+• One scheduled worker.
+• Optional Redis/queue only if concurrency/retries require it.
+• No microservices for MVP.
+
+                 Scheduler / Worker
+                         |
+                  Source Registry
+            +------------+-------------+
+            |            |             |
+       Marketplace   Remote Job    Manual/User
+       Connectors       Feeds         Intake
+            |            |             |
+            +------------+-------------+
+                         |
+                  Normalize + Validate
+                         |
+                Type Classification
+                         |
+                  Dedup + Provenance
+                         |
+                    PostgreSQL
+                         |
+       +-----------------+------------------+
+       |                 |                  |
+ Opportunity       Portfolio/Match      Verification
+ Intelligence          Engine             & Status
+       |                 |                  |
+       +-----------------+------------------+
+                         |
+                  Proposal Engine
+                         |
+                  Human Review UI
+                         |
+                 User applies externally
+                         |
+                  Outcome Tracker
+
+10.2 Repository target structure
+
+apps/
+  api/
+    prisma/
+    src/
+      auth/
+      profile/
+      portfolio/
+      sources/
+        registry/
+        adapters/
+          freelancer-com/       # only after feasibility gate
+          upwork/               # only after approval gate
+          himalayas/
+          jobicy/
+          remoteok/
+          manual/
+      opportunities/
+        ingestion/
+        normalization/
+        classification/
+        deduplication/
+        verification/
+        intelligence/
+        scoring/
+      proposals/
+        evidence/
+        providers/
+        validation/
+        review/
+      applications/
+      scheduler/
+      audit/
+      health/
+  web/
+    app/
+      dashboard/
+      freelance-projects/
+      remote-roles/
+      portfolio/
+      proposals/
+      applications/
+      sources/
+      settings/
+    components/
+    lib/
+packages/
+  contracts/
+  shared/
+docs/
+  product/
+  architecture/
+  source-feasibility/
+  runbooks/
+
+10.3 Single source of truth
+
+Next.js UI → NestJS API → Prisma → PostgreSQL
+
+Remove the duplicate in-memory frontend gig/profile/proposal stores. No silent in-memory fallback for production writes. Database outage must surface as a clear error and readiness failure.
+
+────────
+
+11. Data model and lifecycle
+
+Design schema from workflows, not from an arbitrary list of entities.
+
+Core entities:
+
+• User (single owner in MVP; retain ownership field for future isolation).
+• FreelancerProfile.
+• Skill and ProfileSkill (or normalized skill JSON initially).
+• PortfolioProject and PortfolioEvidence.
+• SourceRegistry.
+• SourceCredential (encrypted, optional, provider-specific).
+• DiscoveryRun.
+• Opportunity.
+• OpportunitySourceReference (allows the same canonical opportunity to be observed from multiple sources).
+• OpportunitySnapshot.
+• OpportunityVerification.
+• OpportunityAnalysis.
+• MatchEvaluation.
+• Proposal and ProposalVersion.
+• Application.
+• ApplicationEvent.
+• UserFeedback.
+• AuditEvent.
+
+Opportunity key strategy:
+
+1. (sourceId, externalId) where stable provider ID exists.
+2. Canonical URL unique per source.
+3. Cross-source fingerprint as a candidate duplicate, not automatic merge unless confidence is high.
+4. Preserve every source reference and original link.
+
+Important fields:
+
+• opportunityType: FREELANCE_PROJECT / CONTRACT_ROLE / FULL_TIME_ROLE / PART_TIME_ROLE / UNKNOWN.
+• sourceStatus: provider’s raw status.
+• availabilityStatus: OPEN / CLOSED / UNKNOWN / NEEDS_RECHECK.
+• clientRating, reviewCount, spend, paymentVerified: nullable.
+• budgetMin, budgetMax, hourlyMin, hourlyMax: nullable with currency and period.
+• firstSeenAt, lastSeenAt, lastVerifiedAt, postedAt, expiresAt.
+• sourcePayloadHash, not unlimited raw payload retention.
+• classificationConfidence, analysisConfidence.
+
+────────
+
+12. Security, privacy and compliance
+
+• Owner-only authentication for every private route.
+• Secure HttpOnly/SameSite cookies, CSRF protection, login rate limits.
+• Strict CORS allowlist.
+• DTO/schema validation.
+• Encrypted OAuth/API tokens at rest.
+• Secrets only in deployment secret manager.
+• Audit changes, approvals, integration connect/disconnect.
+• Least-privilege database access.
+• No marketplace passwords stored.
+• Clear delete/disconnect workflow.
+• Do not retain raw resume or email data unless required and user-consented.
+
+SSRF controls for manual URL intake
+
+• Accept only http/https, preferably https.
+• Restrict automatic fetch to known allowed domains.
+• Reject localhost, loopback, private, link-local, multicast and reserved IP ranges.
+• Resolve DNS and validate every resolved address; defend against DNS rebinding.
+• Disable redirects or revalidate every redirect destination.
+• Limit timeout, response size, content type and ports.
+• Never fetch arbitrary URLs from privileged internal network.
+• For MVP, safest path is user-pasted text/metadata plus opening the original URL in the user’s browser.
+
+Platform compliance rules
+
+• Official API or permission only.
+• Preserve attribution and original application URLs.
+• Respect quotas, cache instructions, deletion/expiry rules and robots/terms where relevant.
+• Do not evade access controls.
+• Do not store cookies or passwords to imitate user sessions.
+• Record source terms URL, reviewed date and permitted use in SourceRegistry.
+
+────────
+
+13. Cloud execution and reliability
+
+The PC must not be required to run scheduled discovery.
+
+Recommended MVP:
+
+• Railway web service.
+• Railway API service.
+• One Railway worker/scheduler process.
+• Managed PostgreSQL.
+• Redis only if queue/locking needs justify it.
+
+Reliability requirements:
+
+• Durable DiscoveryRun records.
+• Idempotent upserts.
+• Single-run lock per provider/schedule.
+• Retry with exponential backoff and jitter.
+• Respect Retry-After.
+• Provider circuit breaker and health status.
+• Worker heartbeat and missed-run alert.
+• Never interpret provider outage as an empty feed.
+• Database-backed queue or durable job state for important tasks.
+• Graceful shutdown and retry-safe jobs.
+
+Suggested schedules:
+
+• Himalayas: once daily (data refresh is daily).
+• Jobicy: 2–4 times daily, respecting minimum interval and current docs.
+• Remote OK: 2–4 times daily subject to current fair use.
+• Marketplace sources: only documented quota and access permit; start with conservative sync.
+• Manual sync: user-triggered with rate limit.
+
+Do not assume Railway free-tier services are always-on. Verify current pricing/sleep/usage limits before choosing the hosting plan. Display last successful sync and scheduler heartbeat in the UI.
+
+────────
+
+14. MVP scope and phased delivery
+
+Phase 0 — Product validation and source feasibility (highest priority)
+
+Deliver:
+
+• 3–5 day validation report.
+• Source matrix with official docs, terms, record types, access, fields, quotas and blockers.
+• Sample opportunity dataset labelled by human.
+• Manual intake prototype specification.
+• Upwork and Freelancer.com feasibility decisions.
+Exit:
+• At least one valid path to real freelance project records (marketplace API if approved, otherwise user-assisted manual intake).
+• Remote role feeds clearly separate.
+• No unverified source treated as live.
+
+Phase 1 — Data integrity and domain separation
+
+Deliver:
+
+• Separate freelance project and remote role domain types.
+• Remove fabricated seed/live opportunities and positive trust defaults.
+• Null unknown values.
+• Database as sole production source of truth.
+• Durable source provenance and dedup.
+Exit:
+• No fabricated opportunities or trust metrics.
+• Repeat sync is idempotent.
+• Database failure is visible.
+
+Phase 2 — Manual intake and real source adapters
+
+Deliver:
+
+• Secure manual URL/text intake.
+• Himalayas, Jobicy, Remote OK remote-role adapters.
+• Freelancer.com adapter only if source gate passes.
+• Upwork adapter only after account/API approval and scope confirmation.
+Exit:
+• Each active adapter has contract tests and attribution.
+• Manual intake works when marketplace APIs are unavailable.
+
+Phase 3 — Portfolio intelligence
+
+Deliver:
+
+• Verified portfolio evidence library.
+• Skills/evidence taxonomy.
+• Opportunity-to-evidence mapping.
+Exit:
+• Every proposal claim can be traced to user-confirmed evidence.
+
+Phase 4 — Opportunity analysis and matching
+
+Deliver:
+
+• Classification and confidence.
+• Separate scoring models for freelance projects and remote roles.
+• Budget/effective-rate analysis.
+• Risk flags and explainability.
+Exit:
+• Human-labelled test set demonstrates useful top-10 precision; target ≥70% initially.
+
+Phase 5 — Proposal engine
+
+Deliver:
+
+• Templates by project category.
+• Evidence selection.
+• Deterministic proposal generation.
+• Optional LLM adapter.
+• Claim validation and review.
+Exit:
+• No unsupported factual claims in test corpus.
+• User must approve every proposal.
+
+Phase 6 — Application tracking and dashboard
+
+Deliver:
+
+• Separate Freelance Projects and Remote Roles views.
+• Shortlist, proposal, application and outcome tracking.
+• Source health and run history.
+Exit:
+• End-to-end journey passes on real sample opportunities.
+
+Phase 7 — Cloud hardening and release
+
+Deliver:
+
+• Auth, SSRF controls, CORS, rate limits, audit.
+• Worker reliability and monitoring.
+• CI unit/integration/E2E.
+• Backup/restore runbook.
+Exit:
+• Clean DB migration, builds/tests pass, scheduler works with PC off, restore verified.
+
+────────
+
+15. Acceptance criteria
+
+A release is not done because the dashboard renders.
+
+1. Every opportunity has source provenance and original URL.
+2. Freelance project and remote role types are visually distinct.
+3. Missing budget/rating/client spend remains unknown.
+4. No fake/sample record appears in production discovery.
+5. Re-running a provider sync creates no duplicate records.
+6. Provider failure is shown as failure, not zero opportunities.
+7. Closed/unknown/open are not conflated.
+8. Source attribution and apply URL rules are obeyed.
+9. Manual URL intake works without marketplace API credentials.
+10. Every score has explanation and confidence.
+11. Portfolio examples are user-confirmed.
+12. Proposal claims are evidence-linked.
+13. No automatic submission or external message occurs.
+14. Application status changes are auditable.
+15. UI data survives API/worker restarts.
+16. App remains operational when the user’s PC is off.
+17. Auth and owner authorization protect all private data.
+18. SSRF test suite blocks internal/private destinations.
+19. CI runs unit, integration and E2E tests.
+20. A backup can be restored into a clean database.
+
+────────
+
+16. Required credentials and approvals
+
+Required for MVP
+
+• DATABASE_URL
+• AUTH_SECRET
+• TOKEN_ENCRYPTION_KEY
+• Production APP_BASE_URL / allowed frontend origin
+• Deployment secrets for the chosen cloud host
+
+Not required for public feed MVP
+
+• Himalayas API key (optional; public no-key access exists).
+• Jobicy public API key (not required).
+• Remote OK API key (not required).
+• Gmail OAuth.
+• Upwork credentials.
+• Freelancer.com API credentials.
+• Gemini API key.
+
+Conditional / later
+
+• Freelancer.com developer application/API credentials if current docs permit the required project-search use.
+• Upwork client ID/secret and user OAuth only if API access is approved and query permissions support the use case.
+• Jobicy commercial API key only if paying for direct ATS links is justified; current docs describe per-listing charges.
+• Gmail OAuth client only if user explicitly wants email-alert ingestion.
+• Optional Gemini API key only if user wants cloud LLM drafting.
+• Optional Telegram bot token/email provider only if notifications are selected.
+
+Never ask the user to paste secrets into chat. Use environment secrets or a secure deployment dashboard.
+
+────────
+
+17. AI coding-agent handoff prompt (copy/paste)
+
+You are the senior product engineer implementing Freelancer Project Picker v2.0 in:
+
+https://github.com/parasherdhruv/Freelancer-project-picker
+
+Read this blueprint completely. The document is product requirements and architectural constraints, not proof that features already exist.
+
+Mandatory instructions
+
+1. Inspect the full repository and current branch before editing.
+2. Never modify main. Create a new feature branch from current main and work only there.
+3. Before changes, report baseline install, typecheck, build, unit, integration and E2E results. If a command cannot run, report the exact blocker.
+4. Do not start by coding the entire system. Complete Phase 0 source/product validation first and present evidence.
+5. Separate Freelance Projects from Remote Roles in data model, UI, filters and scoring.
+6. Do not call Himalayas, Jobicy or Remote OK client-posted freelance marketplaces. They are remote job feeds.
+7. Re-check current official API docs and terms at implementation time. Record endpoint, schema version/date, quotas, attribution and permission.
+8. Freelancer.com and Upwork connectors are gated by documented project-search access and account authorization. Do not assume a developer portal guarantees the required scope.
+9. Manual URL/text intake must be a first-class MVP path so the product remains useful without marketplace API access.
+10. Never fabricate projects, client ratings, payment verification, client spend, budgets, salary, user achievements or portfolio outcomes.
+11. PostgreSQL is the production source of truth. No silent in-memory fallback.
+12. Keep proposal generation evidence-backed and human-approved. Never auto-submit bids, applications or messages.
+13. Implement SSRF protection for URL intake; use allowlists and validate DNS/IP/redirects.
+14. Keep architecture a modular monolith. No microservices/Kubernetes unless a later measured requirement justifies them.
+15. Add tests for source contracts, deduplication, classification, scoring, proposal claim validation, security and complete user journey.
+16. Commit small reviewable changes to the feature branch. Do not merge without owner approval.
+17. Update README, .env.example, source registry, migrations, API contracts and runbooks.
+18. Never claim a feature, test, API access or deployment works unless it was actually verified.
+
+First deliverable — no code changes yet
+
+Return:
+
+• source feasibility matrix with official references and exact unknowns;
+• product workflow and scope split;
+• sample data findings;
+• API access blockers;
+• recommended MVP scope;
+• implementation PR sequence;
+• credentials/approvals required;
+• baseline repository build/test results.
+
+Only after the owner reviews the Phase 0 report should implementation begin.
+
+────────
+
+18. Brutal self-review of this v2.0 plan
+
+This section is intentionally adversarial. The plan must not be treated as perfect.
+
+Verdict: 8/10 as a planning document; not yet an execution guarantee
+
+What is materially better than v1
+
+• Freelance projects and remote roles are separated.
+• The plan admits marketplace API access may be unavailable.
+• Manual intake keeps the MVP useful without privileged API access.
+• Portfolio evidence is now a core engine, not a future add-on.
+• Scoring is separated by opportunity type.
+• Competition is explicitly unknown when the source does not expose it.
+• Source feasibility has a formal acceptance gate.
+• Product success is measured by qualified applications, not scraped volume.
+
+Remaining weaknesses and risks
+
+1. The core supply risk is still unresolved.
+We have not proven that Freelancer.com API access will expose the exact freelancer-side project search needed. Upwork is gated by review and account eligibility. Therefore the MVP can start with manual intake and remote-role feeds, but automated marketplace discovery remains unproven.
+
+2. “30–50 freelance opportunities” may be hard to collect cleanly.
+This validation target must use user-provided/manual samples or permitted sources. Do not scrape to hit a quota. If fewer than 20 genuine projects can be collected lawfully, document the supply limitation instead of faking a pass.
+
+3. The scoring weights are hypotheses, not science.
+The 20/20/15/15/10/10/5/5 weights are a starting model. They must be calibrated on labelled examples and user feedback. A score of 90 is not a probability of winning.
+
+4. Competition prediction may be impossible.
+Some platforms expose bid counts, some do not, and some expose only after login. The system must not infer competition from elapsed time alone. This dimension may remain unknown and the scoring model may need to redistribute weights.
+
+5. Client trust is not the same as project safety.
+A platform-verified payment method does not guarantee a good client or successful payment. Trust indicators are contextual signals, not endorsements.
+
+6. Manual intake could become a UX bottleneck.
+If user must paste every opportunity manually, the product saves less time. We need a fast “paste URL → extract pasted brief → confirm fields → score” flow, with browser extension/share-sheet considered only after platform terms and browser-store policies are checked.
+
+7. The portfolio engine depends on high-quality evidence.
+If the user does not provide project descriptions, contributions and outcomes, proposal quality will remain generic. This is a product onboarding dependency, not something AI can magically solve.
+
+8. Effort and price estimation are uncertain.
+A project brief is often incomplete. Show ranges, assumptions and confidence; do not output a precise quote as if it were fact.
+
+9. Job-board feed rights are not identical across sources.
+Himalayas has strict application-link and attribution rules and forbids onward distribution to other aggregators. Jobicy has its own current attribution and usage requirements. Remote OK asks for credit and links. Source-specific policy must be encoded, not generalized.
+
+10. API documentation can drift.
+Jobicy’s docs have changed endpoint/version details. Implementation must pin a retrieved OpenAPI schema/hash and contract-test it. Never copy endpoints from this document without checking the live official spec.
+
+11. Single-user does not mean security can be skipped.
+A private URL can still be discovered or leaked. Auth, SSRF prevention, secrets handling and backups remain mandatory before public deployment.
+
+12. A cloud free tier may sleep or impose limits.
+“Cloud runs while PC is off” is an architectural goal, not a promise of always-on free hosting. Confirm billing, sleep policy, worker scheduling and database limits before deployment.
+
+13. This document still cannot decide the user’s bid strategy.
+Minimum rate, project types, acceptable client geographies, weekly capacity and risk tolerance must be confirmed in onboarding. Defaults must not be treated as final.
+
+14. The product may still be too broad for the first release.
+The safest MVP is: profile + portfolio evidence + manual freelance intake + remote feeds + explainable ranking + truthful proposal drafts + tracking. Marketplace connectors come only after access proof.
+
+What would make this plan a 9.5/10?
+
+• Complete the Phase 0 field experiment with actual permitted opportunity samples.
+• Obtain a definitive Freelancer.com API answer for freelancer-side project search.
+• Check Upwork account-specific eligibility and exact GraphQL scopes.
+• Have the user verify portfolio evidence and preferences.
+• Label a real sample set and measure ranking precision.
+• Validate that manual intake is fast enough for daily use.
+
+Final CTO decision: Approve Phase 0 only. Do not authorize a full build yet. The next deliverable should be a source-feasibility and sample-opportunity validation report with evidence. If marketplace APIs are blocked, ship the manual-assisted freelance workflow first and keep remote-role feeds as a separate track.
+
+────────
+
+19. Official references reviewed
+
+1. Himalayas Remote Jobs API — https://himalayas.app/api
+2. Himalayas API reference — https://himalayas.app/docs/remote-jobs-api
+3. Himalayas API terms — https://himalayas.app/terms
+4. Jobicy current API documentation — https://jobicy.com/jobs-rss-feed
+5. Jobicy API repository/OpenAPI — https://github.com/Jobicy/remote-jobs-api
+6. Remote OK API and feed FAQ — https://remoteok.com/faq
+7. Freelancer.com Developer API portal — https://developers.freelancer.com/
+8. Upwork GraphQL API documentation — https://www.upwork.com/developer/documentation/graphql/api/docs/index.html
+9. Upwork API authentication — https://support.upwork.com/hc/en-us/articles/17995930500883–API-authentication-and-security
+10. OWASP SSRF Prevention Cheat Sheet — https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+11. NestJS task scheduling — https://docs.nestjs.com/techniques/task-scheduling
+
+Research boundary: Public documentation is not the same as granted API access. No private marketplace account was accessed and no credentials were tested. The exact project-search scope and permitted personal use for Freelancer.com/Upwork remain implementation gates.
