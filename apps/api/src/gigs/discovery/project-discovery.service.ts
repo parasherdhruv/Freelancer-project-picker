@@ -19,6 +19,13 @@ export class ProjectDiscoveryService {
   async onModuleInit() {
     // Run initial discovery pass on boot
     await this.syncDiscoveredGigs();
+
+    // Automatically re-scan permitted feeds every 6 hours (4 times daily)
+    setInterval(() => {
+      this.syncDiscoveredGigs().catch((err) =>
+        this.logger.error(`Automated daily discovery background error: ${err}`),
+      );
+    }, 1000 * 60 * 60 * 6);
   }
 
   async syncDiscoveredGigs(): Promise<{ added: number; total: number }> {

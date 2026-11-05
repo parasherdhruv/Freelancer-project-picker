@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       scope: body.scope || 'MEDIUM',
       estimatedDuration: body.estimatedDuration || '2-4 weeks',
       description: body.description || '',
-      skills: Array.isArray(body.skills) ? body.skills : [],
+      skills: Array.isArray(body.skills) ? [...new Set<string>(body.skills.map((s: any) => String(s).trim()))] : ([] as string[]),
       source: 'MANUAL' as const,
       sourceUrl: body.sourceUrl || `https://manual.intake/${Date.now()}`,
       status: 'DISCOVERED',

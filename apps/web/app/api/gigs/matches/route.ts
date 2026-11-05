@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getGigs, getProfile, scoreGig } from '@/lib/freelancer-data';
 
-export async function GET() {
+export async function GET(req: Request) {
   const profile = getProfile();
   const gigs = getGigs();
 
+  const url = new URL(req.url);
+  const rateParam = url.searchParams.get('simulatedRate');
+  const simulatedRate = rateParam ? Number(rateParam) : undefined;
+
   const scoredMatches = gigs.map((gig) => {
-    const evaluation = scoreGig(profile, gig);
+    const evaluation = scoreGig(profile, gig, simulatedRate);
     return {
       gig: {
         ...gig,
@@ -26,6 +30,7 @@ export async function GET() {
 
   return NextResponse.json({
     freelancer: profile,
+    simulatedRate,
     totalGigs: gigs.length,
     matches: scoredMatches,
   });

@@ -4,6 +4,7 @@ import {
   generateDeterministicProposal,
   getGigs,
   getProfile,
+  ProposalStrategy,
   updateGigStatus,
 } from '@/lib/freelancer-data';
 
@@ -19,8 +20,18 @@ export async function POST(
     return NextResponse.json({ error: 'Gig not found' }, { status: 404 });
   }
 
+  let strategy: ProposalStrategy = 'TECHNICAL';
+  try {
+    const body = await req.json();
+    if (body.strategy && ['TECHNICAL', 'RAPID_DELIVERY', 'CONSULTING'].includes(body.strategy)) {
+      strategy = body.strategy;
+    }
+  } catch {
+    // default to technical
+  }
+
   const profile = getProfile();
-  const proposal = generateDeterministicProposal(profile, gig);
+  const proposal = generateDeterministicProposal(profile, gig, strategy);
 
   // Safety: Proposal is marked READY_FOR_REVIEW. Never submitted automatically.
   addProposal(proposal);
